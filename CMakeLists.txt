@@ -1,0 +1,154 @@
+cmake_minimum_required(VERSION 3.10)
+project(foma)
+
+set(foma_VERSION_MAJOR 0)
+set(foma_VERSION_MINOR 9)
+set(foma_VERSION_PATCH 18)
+
+find_package(FLEX)
+find_package(BISON)
+
+set(CMAKE_C_STANDARD 99)
+
+# bison and flex
+bison_target(REGEX "${CMAKE_CURRENT_SOURCE_DIR}/foma/regex.y" "${CMAKE_CURRENT_BINARY_DIR}/regex.c"
+	DEFINES_FILE "${CMAKE_CURRENT_BINARY_DIR}/regex.h")
+flex_target(YY "${CMAKE_CURRENT_SOURCE_DIR}/foma/regex.l" "${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c")
+add_flex_bison_dependency(YY REGEX)
+flex_target(LEXC "${CMAKE_CURRENT_SOURCE_DIR}/foma/lexc.l" "${CMAKE_CURRENT_BINARY_DIR}/lex.lexc.c"
+	COMPILE_FLAGS "-8 --prefix=lexc")
+flex_target(INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/foma/interface.l" "${CMAKE_CURRENT_BINARY_DIR}/lex.interface.c"
+	COMPILE_FLAGS "-8 --prefix=interface")
+flex_target(CMATRIX "${CMAKE_CURRENT_SOURCE_DIR}/foma/cmatrix.l" "${CMAKE_CURRENT_BINARY_DIR}/lex.cmatrix.c"
+	COMPILE_FLAGS "-8 --prefix=cmatrix")
+
+# source compile
+file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/foma" "foma*.h")
+
+add_library(COMMON_OBJ OBJECT
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/define.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/apply.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/sigma.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/utf8.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/mem.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/stringhash.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/trie.c")
+target_compile_options(COMMON_OBJ PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC)
+target_include_directories(COMMON_OBJ PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
+
+add_library(foma_static STATIC
+	$<TARGET_OBJECTS:COMMON_OBJ>
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/int_stack.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/determinize.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/rewrite.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/lexcread.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/topsort.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/flags.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/minimize.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/reverse.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/extract.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/io.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/structures.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/constructions.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/coaccessible.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/spelling.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/dynarray.c"
+	${BISON_REGEX_OUTPUT_SOURCE}
+	${FLEX_YY_OUTPUTS}
+	${FLEX_LEXC_OUTPUTS}
+	${FLEX_CMATRIX_OUTPUTS})
+target_compile_options(foma_static PRIVATE -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC)
+target_include_directories(foma_static
+	PUBLIC $<INSTALL_INTERFACE:include>
+       	PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
+target_link_libraries(foma_static PUBLIC -lreadline -lz -ltermcap)
+set_target_properties(foma_static PROPERTIES
+	OUTPUT_NAME foma
+	VERSION 0.9.18
+	SOVERSION 0
+	PUBLIC_HEADER "${HEADERS}")
+
+add_library(foma_shared SHARED $<TARGET_OBJECTS:COMMON_OBJ>)
+target_include_directories(foma_shared INTERFACE $<INSTALL_INTERFACE:include>)
+target_link_libraries(foma_shared
+	PUBLIC -lreadline -lz -ltermcap
+       	PRIVATE foma_static)
+set_target_properties(foma_shared PROPERTIES
+	OUTPUT_NAME foma
+	VERSION 0.9.18
+	SOVERSION 0
+	PUBLIC_HEADER "${HEADERS}")
+
+add_executable(foma
+       	"${CMAKE_CURRENT_SOURCE_DIR}/foma/foma.c"
+       	"${CMAKE_CURRENT_SOURCE_DIR}/foma/stack.c"
+       	"${CMAKE_CURRENT_SOURCE_DIR}/foma/iface.c"
+	${FLEX_INTERFACE_OUTPUTS})
+target_include_directories(foma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
+target_compile_options(foma PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden)
+target_link_libraries(foma PUBLIC foma_static -lreadline -lz -ltermcap) 
+
+add_executable(flookup "${CMAKE_CURRENT_SOURCE_DIR}/foma/flookup.c")
+target_compile_options(flookup PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden)
+target_link_libraries(flookup PUBLIC foma_static -lreadline -lz -ltermcap)
+
+add_executable(cgflookup "${CMAKE_CURRENT_SOURCE_DIR}/foma/cgflookup.c")
+target_compile_options(cgflookup PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden)
+target_link_libraries(cgflookup PUBLIC foma_static -lreadline -lz -ltermcap)
+
+# thread-safe foma
+add_library(foma_r_static STATIC
+	$<TARGET_OBJECTS:COMMON_OBJ>
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/int_stack_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/determinize_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/topsort_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/flags_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/minimize_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/reverse_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/extract_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/io_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/structures_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/constructions_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/coaccessible_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/spelling_r.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/foma/dynarray_r.c")
+target_compile_options(foma_r_static PRIVATE -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC -DTHREAD_SAFE_FOMA)
+target_include_directories(foma_r_static
+	PUBLIC $<INSTALL_INTERFACE:include>
+	PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(foma_r_static PUBLIC -lz)
+set_target_properties(foma_r_static PROPERTIES
+	OUTPUT_NAME foma_r
+	VERSION 0.9.18
+	SOVERSION 0
+	PUBLIC_HEADER "${HEADERS}")
+
+add_library(foma_r_shared SHARED $<TARGET_OBJECTS:COMMON_OBJ>)
+target_include_directories(foma_r_shared INTERFACE $<INSTALL_INTERFACE:include>)
+target_link_libraries(foma_r_shared PRIVATE foma_r_static)
+set_target_properties(foma_r_shared PROPERTIES
+	OUTPUT_NAME foma_r
+	VERSION 0.9.18
+	SOVERSION 0
+	PUBLIC_HEADER "${HEADERS}")
+
+# install
+install(TARGETS foma_shared foma_static foma_r_shared foma_r_static
+	EXPORT foma
+	ARCHIVE DESTINATION lib
+	LIBRARY DESTINATION lib
+	PUBLIC_HEADER DESTINATION include/foma)
+install(TARGETS foma flookup cgflookup
+	RUNTIME DESTINATION bin)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/foma-config.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/foma-config.cmake
+	INSTALL_DESTINATION lib/cmake/foma)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/foma-config.cmake
+	DESTINATION lib/cmake/foma)
+
+install(EXPORT foma 
+	NAMESPACE foma::
+	DESTINATION lib/cmake/foma)
+
