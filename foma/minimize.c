@@ -25,9 +25,9 @@ static struct fsm *fsm_minimize_brz(struct fsm *net);
 static struct fsm *fsm_minimize_hop(struct fsm *net);
 static struct fsm *rebuild_machine(struct fsm *net);
 
-static int *single_sigma_array, *double_sigma_array, *memo_table, *temp_move, *temp_group, maxsigma, epsilon_symbol, num_states, num_symbols, num_finals, mainloop, total_states;
+static _Thread_local int *single_sigma_array, *double_sigma_array, *memo_table, *temp_move, *temp_group, maxsigma, epsilon_symbol, num_states, num_symbols, num_finals, mainloop, total_states;
 
-static _Bool *finals;
+static _Thread_local _Bool *finals;
 
 struct statesym {
     int target;
@@ -66,12 +66,12 @@ struct agenda {
   _Bool index;
 };
 
-struct trans_list {
+static _Thread_local struct trans_list {
     int inout;
     int source;
 } *trans_list;
 
-struct trans_array {
+static _Thread_local struct trans_array {
     struct trans_list *transitions;
     unsigned int size;
     unsigned int tail;
@@ -79,9 +79,9 @@ struct trans_array {
 
 
 
-static struct p *P, *Phead, *Pnext, *current_w;
-static struct e *E;
-static struct agenda *Agenda_head, *Agenda_top, *Agenda_next, *Agenda;
+static _Thread_local struct p *P, *Phead, *Pnext, *current_w;
+static _Thread_local struct e *E;
+static _Thread_local struct agenda *Agenda_head, *Agenda_top, *Agenda_next, *Agenda;
 
 static INLINE int refine_states(int sym);
 static void init_PE();

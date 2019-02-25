@@ -23,7 +23,7 @@
 #define SIGMA_HASH_SIZE 1021
 #define MINSIGMA 3
 
-struct foma_reserved_symbols {
+_Thread_local struct foma_reserved_symbols {
     char *symbol;
     int number;
     char *prints_as;
@@ -34,19 +34,19 @@ struct foma_reserved_symbols {
     {NULL,0,NULL}
 };
 
-static size_t current_fsm_size;
-static unsigned int current_fsm_linecount, current_state_no, current_final, current_start, current_trans, num_finals, num_initials, arity, statecount;
-static _Bool is_deterministic, is_epsilon_free;
-static struct fsm_state *current_fsm_head;
+static _Thread_local size_t current_fsm_size;
+static _Thread_local unsigned int current_fsm_linecount, current_state_no, current_final, current_start, current_trans, num_finals, num_initials, arity, statecount;
+static _Thread_local _Bool is_deterministic, is_epsilon_free;
+static _Thread_local struct fsm_state *current_fsm_head;
 
-static unsigned int mainloop, ssize, arccount;
+static _Thread_local unsigned int mainloop, ssize, arccount;
 
 struct sigma_lookup {
     int target;
     unsigned int mainloop;
 };
 
-static struct sigma_lookup *slookup;
+static _Thread_local struct sigma_lookup *slookup;
 
 /* Functions for directly building a fsm_state structure */
 /* dynamically. */

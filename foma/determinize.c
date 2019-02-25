@@ -29,9 +29,9 @@
 
 #define NHASH_LOAD_LIMIT 2 /* load limit for nhash table size */
 
-static int fsm_linecount, num_states, num_symbols, epsilon_symbol, *single_sigma_array, *double_sigma_array, limit, num_start_states, op;
+static _Thread_local int fsm_linecount, num_states, num_symbols, epsilon_symbol, *single_sigma_array, *double_sigma_array, limit, num_start_states, op;
 
-static _Bool *finals, deterministic, numss;
+static _Thread_local _Bool *finals, deterministic, numss;
 
 struct e_closure_memo {
     int state;
@@ -40,11 +40,11 @@ struct e_closure_memo {
     struct e_closure_memo *next;
 };
 
-static unsigned int primes[26] = {61,127,251,509,1021,2039,4093,8191,16381,32749,65521,131071,262139,524287,1048573,2097143,4194301,8388593,16777213,33554393,67108859,134217689,268435399,536870909,1073741789,2147483647};
+static _Thread_local unsigned int primes[26] = {61,127,251,509,1021,2039,4093,8191,16381,32749,65521,131071,262139,524287,1048573,2097143,4194301,8388593,16777213,33554393,67108859,134217689,268435399,536870909,1073741789,2147483647};
 
-static struct e_closure_memo *e_closure_memo;
+static _Thread_local struct e_closure_memo *e_closure_memo;
 
-int T_last_unmarked, T_limit;
+_Thread_local int T_last_unmarked, T_limit;
 
 struct nhash_list {
     int setnum;
@@ -59,22 +59,22 @@ struct T_memo {
     unsigned int set_offset;
 };
 
-struct trans_list {
+static _Thread_local struct trans_list {
     int inout;
     int target;
 } *trans_list;
 
-struct trans_array {
+static _Thread_local struct trans_array {
     struct trans_list *transitions;
     unsigned int size;
     unsigned int tail;
 } *trans_array;
 
-static struct T_memo *T_ptr;
+static _Thread_local struct T_memo *T_ptr;
 
-static int nhash_tablesize, nhash_load, current_setnum, *e_table, *marktable, *temp_move, mainloop, maxsigma, *set_table, set_table_size, star_free_mark;
-static unsigned int set_table_offset;
-static struct nhash_list *table;
+static _Thread_local int nhash_tablesize, nhash_load, current_setnum, *e_table, *marktable, *temp_move, mainloop, maxsigma, *set_table, set_table_size, star_free_mark;
+static _Thread_local unsigned int set_table_offset;
+static _Thread_local struct nhash_list *table;
 
 extern int add_fsm_arc(struct fsm_state *fsm, int offset, int state_no, int in, int out, int target, int final_state, int start_state);
 

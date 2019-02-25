@@ -26,7 +26,7 @@
 
 /* Front-end behavior variables */
 int pipe_mode = 0;
-int quiet_mode = 0;
+_Thread_local int quiet_mode = 0;
 static int use_readline = 1;
 
 int promptmode = PROMPT_MAIN;

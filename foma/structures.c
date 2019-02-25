@@ -21,7 +21,7 @@
 #include <sys/time.h>
 #include "foma.h"
 
-static struct defined_quantifiers *quantifiers;
+static _Thread_local struct defined_quantifiers *quantifiers;
 
 char *fsm_get_library_version_string() {
     static char s[20];

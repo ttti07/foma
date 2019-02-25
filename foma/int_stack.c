@@ -22,11 +22,11 @@
 #define MAX_STACK 2097152
 #define MAX_PTR_STACK 2097152
 
-static int a[MAX_STACK];
-static int top = -1;
+static _Thread_local int a[MAX_STACK];
+static _Thread_local int top = -1;
 
-static void *ptr_stack[MAX_PTR_STACK];
-static int ptr_stack_top = -1;
+static _Thread_local void *ptr_stack[MAX_PTR_STACK];
+static _Thread_local int ptr_stack_top = -1;
 
 int ptr_stack_isempty() {
     return ptr_stack_top == -1;

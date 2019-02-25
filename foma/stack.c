@@ -20,9 +20,9 @@
 #include <stdlib.h>
 #include "foma.h"
 
-extern int quiet_mode;
+extern _Thread_local int quiet_mode;
 
-struct stack_entry *main_stack;
+_Thread_local struct stack_entry *main_stack;
 
 int stack_size() {
   int i;

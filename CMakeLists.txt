@@ -8,7 +8,9 @@ set(foma_VERSION_PATCH 18)
 find_package(FLEX)
 find_package(BISON)
 
-set(CMAKE_C_STANDARD 99)
+if(${__STDC_NO_THREADS__})
+	message(FATAL_ERROR "The compiler does not support thread library")
+endif()
 
 # bison and flex
 bison_target(REGEX "${CMAKE_CURRENT_SOURCE_DIR}/foma/regex.y" "${CMAKE_CURRENT_BINARY_DIR}/regex.c"
@@ -33,6 +35,7 @@ add_library(COMMON_OBJ OBJECT
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/mem.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/stringhash.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/trie.c")
+target_compile_features(COMMON_OBJ PRIVATE c_std_11)
 target_compile_options(COMMON_OBJ PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC)
 target_include_directories(COMMON_OBJ PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
 
@@ -57,6 +60,7 @@ add_library(foma_static STATIC
 	${FLEX_YY_OUTPUTS}
 	${FLEX_LEXC_OUTPUTS}
 	${FLEX_CMATRIX_OUTPUTS})
+target_compile_features(foma_static PRIVATE c_std_11)
 target_compile_options(foma_static PRIVATE -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC)
 target_include_directories(foma_static
 	PUBLIC $<INSTALL_INTERFACE:include>
@@ -85,6 +89,7 @@ add_executable(foma
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/iface.c"
 	${FLEX_INTERFACE_OUTPUTS})
 target_include_directories(foma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
+target_compile_features(foma PRIVATE c_std_11)
 target_compile_options(foma PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden)
 target_link_libraries(foma PUBLIC foma_static -lreadline -lz -ltermcap) 
 
