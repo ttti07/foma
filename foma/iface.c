@@ -834,7 +834,7 @@ void iface_apply_random(char *(*applyer)(), int limit) {
 
 void iface_print_sigma() {
     if (iface_stack_check(1))
-        print_sigma(stack_find_top()->fsm->sigma,stdout);
+        print_sigma(&stack_find_top()->fsm->sigma,stdout);
 }
 void iface_print_stats() {
     if (iface_stack_check(1))
@@ -1430,6 +1430,8 @@ void iface_zero_plus() {
 
 static char *sigptr(struct sigma *sigma, int number) {
     char *mystr;
+    struct symbol *syms = sigma->symbols;
+
     if (number == EPSILON)
         return "0";
     if (number == UNKNOWN)
@@ -1437,17 +1439,17 @@ static char *sigptr(struct sigma *sigma, int number) {
     if (number == IDENTITY)
         return "@";
 
-    for (; sigma != NULL; sigma = sigma->next) {
-        if (sigma->number == number) {
-            if (strcmp(sigma->symbol,"0") == 0)
+    for (unsigned int i = 0; i < sigma->size; ++i) {
+        if (syms[i].number == number) {
+            if (strcmp(syms[i].symbol,"0") == 0)
                 return("\"0\"");
-            if (strcmp(sigma->symbol,"?") == 0)
+            if (strcmp(syms[i].symbol,"?") == 0)
                 return("\"?\"");
-            if (strcmp(sigma->symbol,"\n") == 0)
+            if (strcmp(syms[i].symbol,"\n") == 0)
                 return("\\n");
-            if (strcmp(sigma->symbol,"\r") == 0)
+            if (strcmp(syms[i].symbol,"\r") == 0)
                 return("\\r");
-            return (sigma->symbol);
+            return (syms[i].symbol);
         }
     }
     mystr = xxmalloc(sizeof(char)*40);
@@ -1483,7 +1485,7 @@ static int print_net(struct fsm *net, char *filename) {
       net->arity = 2;
     }
   }
-  print_sigma(net->sigma, out);
+  print_sigma(&net->sigma, out);
   fprintf(out,"Net: %s\n",net->name);
   fprintf(out,"Flags: ");
   if (net->is_deterministic == YES) { fprintf(out,"deterministic ");}
@@ -1517,10 +1519,10 @@ static int print_net(struct fsm *net, char *filename) {
       } else if (stateptr->in == UNKNOWN) {
           fprintf(out,"?:? -> ");
       } else {
-          fprintf(out,"%s -> ",sigptr(net->sigma, stateptr->in));
+          fprintf(out,"%s -> ",sigptr(&net->sigma, stateptr->in));
       }
     } else {
-        fprintf(out,"<%s:%s> -> ",sigptr(net->sigma, stateptr->in),sigptr(net->sigma, stateptr->out));
+        fprintf(out,"<%s:%s> -> ",sigptr(&net->sigma, stateptr->in),sigptr(&net->sigma, stateptr->out));
     }
     if (*(finals+(stateptr->target)) == 1) {
         fprintf(out,"f");
@@ -1542,13 +1544,14 @@ static int print_net(struct fsm *net, char *filename) {
 
 void print_mem_size(struct fsm *net) {
     char size[20];
-    struct sigma *sigma;
+    struct symbol *syms = net->sigma.symbols;
     unsigned int s;
     float sf;
-    s = 0;
-    for (sigma = net->sigma; sigma != NULL && sigma->number != -1; sigma = sigma->next) {
-        s += strlen(sigma->symbol)+1+sizeof(struct sigma);
-    }
+
+    s = sizeof(struct sigma);
+    for (unsigned int i = 0; i < net->sigma.size; ++i)
+        s += strlen(syms[i].symbol) + sizeof(struct symbol);
+
     s += sizeof(struct fsm);
     s += sizeof(struct fsm_state) * net->linecount;
     sf = s;
@@ -1584,17 +1587,19 @@ int print_stats(struct fsm *net) {
 }
 
 static int print_sigma(struct sigma *sigma, FILE *out) {
-  int size;
+  int size = 0;
+  struct symbol *syms = sigma->symbols;
+
   fprintf (out,"Sigma:");
-  for (size = 0; sigma != NULL; sigma = sigma->next) {
-      if (sigma->number > 2) {
-          fprintf(out," %s",(sigma->symbol));
+  for (unsigned int i = 9; i < sigma->size; ++i) {
+      if (syms[i].number > 2) {
+          fprintf(out," %s", syms[i].symbol);
           size++;
       }
-      if (sigma->number == IDENTITY) {
+      if (syms[i].number == IDENTITY) {
           fprintf(out," %s","@");
       }
-      if (sigma->number == UNKNOWN) {
+      if (syms[i].number == UNKNOWN) {
           fprintf(out," %s","?");
       }
   }
@@ -1650,11 +1655,11 @@ static int print_dot(struct fsm *net, char *filename) {
               printed[j] = 1;
 
               if (((stateptr+j)->in == ((stateptr+j)->out)) && (stateptr+j)->out != UNKNOWN ) {
-                  fprintf(dotfile,"%s", escape_string(sigptr(net->sigma, (stateptr+j)->in),'"'));
-                  linelen += strlen((sigptr(net->sigma, (stateptr+j)->in)));
+                  fprintf(dotfile,"%s", escape_string(sigptr(&net->sigma, (stateptr+j)->in),'"'));
+                  linelen += strlen((sigptr(&net->sigma, (stateptr+j)->in)));
               } else {
-                  fprintf(dotfile,"<%s:%s>", escape_string(sigptr(net->sigma, (stateptr+j)->in),'"'), escape_string(sigptr(net->sigma, (stateptr+j)->out),'"'));
-                  linelen += strlen((sigptr(net->sigma, (stateptr+j)->in))) + strlen(sigptr(net->sigma, (stateptr+j)->out)) + 3;
+                  fprintf(dotfile,"<%s:%s>", escape_string(sigptr(&net->sigma, (stateptr+j)->in),'"'), escape_string(sigptr(&net->sigma, (stateptr+j)->out),'"'));
+                  linelen += strlen((sigptr(&net->sigma, (stateptr+j)->in))) + strlen(sigptr(&net->sigma, (stateptr+j)->out)) + 3;
               }
               if (linelen > 12) {
                   fprintf(dotfile, "\\n");

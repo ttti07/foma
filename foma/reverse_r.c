@@ -26,7 +26,7 @@ struct fsm *fsm_reverse(struct build_handle *b_handle, struct fsm *net) {
 
     inh = fsm_read_init(net);
     revh = fsm_construct_init(net->name);
-    fsm_construct_copy_sigma(revh, net->sigma);
+    fsm_construct_copy_sigma(revh, &net->sigma);
 
     while (fsm_get_next_arc(inh)) {
 	fsm_construct_add_arc_nums(revh, fsm_get_arc_target(inh)+1, fsm_get_arc_source(inh)+1, fsm_get_arc_num_in(inh), fsm_get_arc_num_out(inh));

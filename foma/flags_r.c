@@ -261,31 +261,30 @@ int flag_build(int ftype, char *fname, char *fvalue, int fftype, char *ffname, c
 
 void flag_purge (struct fsm *net, char *name) {
     struct fsm_state *fsm;
-    struct sigma *sigma;
+    struct symbol *syms = net->sigma.symbols;
     int i, *ftable, sigmasize;
     char *csym;
-    sigmasize = sigma_max(net->sigma)+1;
+    sigmasize = sigma_max(&net->sigma)+1;
     ftable = xxmalloc(sizeof(int) * sigmasize);
     fsm = net->states;
     for (i=0; i<sigmasize; i++)
         *(ftable+i)=0;
     
-    for (sigma = net->sigma; sigma != NULL && sigma->number != -1; sigma = sigma->next) {
-        
-        if (flag_check(sigma->symbol)) {
+    for (unsigned int i = 0; i < net->sigma.size; ++i) {
+        if (flag_check(syms[i].symbol)) {
             if (name == NULL) {
-                *(ftable+(sigma->number)) = 1;
+                *(ftable+(syms[i].number)) = 1;
             } else {
-                csym = (sigma->symbol) + 3;
+                csym = (syms[i].symbol) + 3;
                 if (strncmp(csym,name,strlen(name)) == 0 && (strlen(csym)>strlen(name)) && (strncmp(csym+strlen(name),".",1) == 0 || strncmp(csym+strlen(name),"@",1) == 0)) {
-                    *(ftable+(sigma->number)) = 1;
+                    *(ftable+(syms[i].number)) = 1;
                 }
             }
         }
     }
     for (i = 0; i < sigmasize; i++) {
 	if (*(ftable+i)) {
-	    net->sigma = sigma_remove_num(i, net->sigma);
+	    sigma_remove_num(i, &net->sigma);
 	}
     }
 
@@ -306,19 +305,19 @@ void flag_purge (struct fsm *net, char *name) {
 /* Extract all flags from network and place them in struct flag linked list */
 
 struct flags *flag_extract (struct fsm *net) {
-    struct sigma *sigma;
+    struct symbol *syms = net->sigma.symbols;
     struct flags *flags, *flagst;
 
     flags = NULL;
-    for (sigma = net->sigma ; sigma != NULL; sigma = sigma->next) {
-        if (flag_check(sigma->symbol)) {
+    for (unsigned int i = 0; i < net->sigma.size; ++i) {
+        if (flag_check(syms[i].symbol)) {
             flagst = xxmalloc(sizeof(struct flags));
             flagst->next = flags;
             flags = flagst;
             
-            flags->type  = flag_get_type(sigma->symbol);
-            flags->name  = flag_get_name(sigma->symbol);
-            flags->value = flag_get_value(sigma->symbol);
+            flags->type  = flag_get_type(syms[i].symbol);
+            flags->name  = flag_get_name(syms[i].symbol);
+            flags->value = flag_get_value(syms[i].symbol);
         }        
     }    
     return(flags);
@@ -438,20 +437,20 @@ char *flag_get_value(char *string) {
 
 struct fsm *flag_twosided(struct build_handle *b_handle, struct fsm *net) {
   struct fsm_state *fsm;
-  struct sigma *sigma;
+  struct symbol *syms = net->sigma.symbols;
   int i, j, tail, *isflag, maxsigma, maxstate, newarcs, change;
  
   /* Enforces twosided flag diacritics */
   
   /* Mark flag symbols */
-  maxsigma = sigma_max(net->sigma);
+  maxsigma = sigma_max(&net->sigma);
   isflag = xxcalloc(maxsigma+1, sizeof(int));
   fsm = net->states;
-  for (sigma = net->sigma ; sigma != NULL; sigma = sigma->next) {
-    if (flag_check(sigma->symbol)) {
-      *(isflag+sigma->number) = 1;
+  for (unsigned int i = 0; i < net->sigma.size; ++i) {
+    if (flag_check(syms[i].symbol)) {
+      *(isflag+syms[i].number) = 1;
     } else {
-      *(isflag+sigma->number) = 0;
+      *(isflag+syms[i].number) = 0;
     }
   }
   maxstate = 0;

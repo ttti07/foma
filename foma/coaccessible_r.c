@@ -148,8 +148,7 @@ struct fsm *fsm_coaccessible(struct build_handle *b_handle, struct fsm *net) {
       /* We're dealing with the empty language */
       xxfree(fsm);
       net->states = fsm_empty();
-      fsm_sigma_destroy(net->sigma);
-      net->sigma = sigma_create();
+      fsm_sigma_destroy(&net->sigma);
     }
     net->linecount = new_linecount;
     net->arccount = new_arccount;

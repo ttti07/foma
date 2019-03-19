@@ -612,7 +612,7 @@ static void sigma_to_pairs(struct fsm *net) {
   fsm = net->states;
   
   epsilon_symbol = -1; 
-  maxsigma = sigma_max(net->sigma);
+  maxsigma = sigma_max(&net->sigma);
 
   maxsigma++;
 

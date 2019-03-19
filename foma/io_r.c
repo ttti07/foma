@@ -95,7 +95,7 @@ int foma_write_prolog (struct fsm *net, char *filename) {
     printf("Writing prolog to file '%s'.\n", filename);
   }
   fsm_count(net);
-  maxsigma = sigma_max(net->sigma);
+  maxsigma = sigma_max(&net->sigma);
   used_symbols = xxcalloc(maxsigma+1,sizeof(int));
   finals = xxmalloc(sizeof(int)*(net->statecount));
   stateptr = net->states;
@@ -123,7 +123,7 @@ int foma_write_prolog (struct fsm *net, char *filename) {
 
   for (i = 3; i <= maxsigma; i++) {
     if (*(used_symbols+i) == 0) {
-      instring = sigma_string(i, net->sigma);
+      instring = sigma_string(i, &net->sigma);
       if (strcmp(instring,"0") == 0) {
 	  instring = "%0";
       } 
@@ -141,11 +141,11 @@ int foma_write_prolog (struct fsm *net, char *filename) {
     if      (stateptr->in == 0) instring = "0";
     else if (stateptr->in == 1) instring = "?";
     else if (stateptr->in == 2) instring = "?";
-    else instring = sigma_string(stateptr->in, net->sigma);
+    else instring = sigma_string(stateptr->in, &net->sigma);
     if      (stateptr->out == 0) outstring = "0";
     else if (stateptr->out == 1) outstring = "?";
     else if (stateptr->out == 2) outstring = "?";
-    else outstring = sigma_string(stateptr->out, net->sigma);
+    else outstring = sigma_string(stateptr->out, &net->sigma);
 
     if (strcmp(instring,"0") == 0 && stateptr->in != 0) instring = "%0";
     if (strcmp(outstring,"0") == 0 && stateptr->out != 0) outstring = "%0";
@@ -737,10 +737,10 @@ struct fsm *io_net_read(struct io_buf_handle *iobh, char **net_name) {
 	new_symbol++;
 	if (new_symbol[0] == '\0') {
 	    sscanf(buf,"%i", &new_symbol_number);
-	    sigma_add_number(net->sigma, "\n", new_symbol_number);
+	    sigma_add_number(&net->sigma, "\n", new_symbol_number);
 	} else {
 	    sscanf(buf,"%i", &new_symbol_number);
-	    sigma_add_number(net->sigma, new_symbol, new_symbol_number);
+	    sigma_add_number(&net->sigma, new_symbol, new_symbol_number);
 	}
     }
 
@@ -841,7 +841,7 @@ static int io_gets(struct io_buf_handle *iobh, char *target) {
 }
 
 int foma_net_print(struct fsm *net, gzFile outfile) {
-    struct sigma *sigma;
+    struct symbol *syms = net->sigma.symbols;
     struct fsm_state *fsm;
     int i, maxsigma, laststate, *cm, extras;
 
@@ -858,8 +858,8 @@ int foma_net_print(struct fsm *net, gzFile outfile) {
     
     /* Sigma */
     gzprintf(outfile, "%s","##sigma##\n");
-    for (sigma = net->sigma; sigma != NULL && sigma->number != -1; sigma = sigma->next) {
-        gzprintf(outfile, "%i %s\n",sigma->number, sigma->symbol);
+    for (unsigned int i = 0; i < net->sigma.size; ++i) {
+        gzprintf(outfile, "%i %s\n", syms[i].number, syms[i].symbol);
     }
 
     /* State array */
@@ -889,7 +889,7 @@ int foma_net_print(struct fsm *net, gzFile outfile) {
 
         gzprintf(outfile, "%s","##cmatrix##\n");
         cm = net->medlookup->confusion_matrix;
-        maxsigma = sigma_max(net->sigma)+1;
+        maxsigma = sigma_max(&net->sigma)+1;
         for (i=0; i < maxsigma*maxsigma; i++) {
             gzprintf(outfile, "%i\n", *(cm+i));
         }
@@ -906,8 +906,8 @@ int net_print_att(struct fsm *net, FILE *outfile) {
     int i, prev;
 
     fsm = net->states;
-    sl = sigma_to_list(net->sigma);
-    if (sigma_max(net->sigma) >= 0) {
+    sl = sigma_to_list(&net->sigma);
+    if (sigma_max(&net->sigma) >= 0) {
         (sl+0)->symbol = g_att_epsilon;
     }
     for (i=0; (fsm+i)->state_no != -1; i++) {

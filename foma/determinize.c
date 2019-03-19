@@ -210,10 +210,10 @@ static struct fsm *fsm_subset(struct fsm *net, int operation) {
     }
 
     if (operation == SUBSET_TEST_STAR_FREE) {
-        fsm_state_init(sigma_max(net->sigma)+1);
+        fsm_state_init(sigma_max(&net->sigma)+1);
         star_free_mark = 0;
     } else {
-        fsm_state_init(sigma_max(net->sigma));
+        fsm_state_init(sigma_max(&net->sigma));
         xxfree(net->states);
     }
 
@@ -642,7 +642,7 @@ static void sigma_to_pairs(struct fsm *net) {
   fsm = net->states;
 
   epsilon_symbol = -1; 
-  maxsigma = sigma_max(net->sigma);
+  maxsigma = sigma_max(&net->sigma);
   maxsigma++;
 
   single_sigma_array = xxmalloc(2*maxsigma*maxsigma*sizeof(int));

@@ -255,11 +255,10 @@ struct fsm *fsm_rewrite(struct rewrite_set *all_rules) {
     Base = fsm_minimize(fsm_lower(fsm_compose(Base, fsm_parse_regex("[?:0]^4 [?:0 ?:0 ? ?]* [?:0]^4", NULL, NULL))));
     Base = fsm_unflatten(Base, "@0@", "@ID@");
 
-    for (i = 0; specialsymbols[i] != NULL; i++) {
-	Base->sigma = sigma_remove(specialsymbols[i], Base->sigma);
-    }
+    for (i = 0; specialsymbols[i] != NULL; i++)
+        sigma_remove(specialsymbols[i], &Base->sigma);
     for (rule_number = 1; rule_number <= num_rules; rule_number++)
-	Base->sigma = sigma_remove(rb->namestrings[rule_number-1], Base->sigma);
+        sigma_remove(rb->namestrings[rule_number-1], &Base->sigma);
 
     fsm_compact(Base);
     sigma_sort(Base);
@@ -505,16 +504,16 @@ void rewrite_add_special_syms(struct rewrite_batch *rb, struct fsm *net) {
     int i;
     if (net == NULL)
         return;
-    sigma_substitute(".#.", "@#@", net->sigma); /* We convert boundaries to our interal rep.                          */
+    sigma_substitute(".#.", "@#@", &net->sigma); /* We convert boundaries to our interal rep.                          */
                                                 /* This is because sigma merging (fsm_merge_sigma()) is handled       */
                                                 /* in a special way for .#., which we don't want here.                */
 
     for (i = 0; specialsymbols[i] != NULL; i++) {
-	if (sigma_find(specialsymbols[i], net->sigma) == -1)
-	    sigma_add(specialsymbols[i], net->sigma);
+	if (sigma_find(specialsymbols[i], &net->sigma) == -1)
+	    sigma_add(specialsymbols[i], &net->sigma);
     }
     for (i = 1; i <= rb->num_rules; i++) {
-	sigma_add(rb->namestrings[i-1], net->sigma);
+	sigma_add(rb->namestrings[i-1], &net->sigma);
     }
     sigma_sort(net);
 }
@@ -545,8 +544,8 @@ struct fsm *rewr_context_restrict(struct rewrite_batch *rb, struct fsm *X, struc
     /* which would cause extra nondeterminism */
 
     NewX = fsm_copy(X);
-    if (sigma_find("@VARX@", NewX->sigma) == -1) {
-	sigma_add("@VARX@", NewX->sigma);
+    if (sigma_find("@VARX@", &NewX->sigma) == -1) {
+	sigma_add("@VARX@", &NewX->sigma);
 	sigma_sort(NewX);
     }
     UnionP = fsm_empty_set();
@@ -556,14 +555,14 @@ struct fsm *rewr_context_restrict(struct rewrite_batch *rb, struct fsm *X, struc
 	    Left = fsm_empty_string();
 	} else {
 	    Left = fsm_copy(pairs->cpleft);
-	    sigma_add("@VARX@", Left->sigma);
+	    sigma_add("@VARX@", &Left->sigma);
 	    sigma_sort(Left);
 	}
 	if (pairs->right == NULL) {
 	    Right = fsm_empty_string();
 	} else {
 	    Right = fsm_copy(pairs->cpright);
-	    sigma_add("@VARX@", Right->sigma);
+	    sigma_add("@VARX@", &Right->sigma);
 	    sigma_sort(Right);
 	}
         UnionP = fsm_union(fsm_concat(Left, fsm_concat(fsm_copy(Var), fsm_concat(fsm_copy(Notvar), fsm_concat(fsm_copy(Var), Right)))), UnionP);
@@ -571,7 +570,7 @@ struct fsm *rewr_context_restrict(struct rewrite_batch *rb, struct fsm *X, struc
     UnionL = fsm_concat(fsm_copy(Notvar), fsm_concat(fsm_copy(Var), fsm_concat(fsm_copy(NewX), fsm_concat(fsm_copy(Var), fsm_copy(Notvar)))));
     Result = fsm_minus(UnionL, fsm_concat(fsm_copy(Notvar), fsm_concat(fsm_copy(UnionP), fsm_copy(Notvar))));
 
-    if (sigma_find("@VARX@", Result->sigma) != -1) {
+    if (sigma_find("@VARX@", &Result->sigma) != -1) {
         Result = fsm_complement(fsm_substitute_symbol(Result, "@VARX@","@_EPSILON_SYMBOL_@"));
     } else {
         Result = fsm_complement(Result);

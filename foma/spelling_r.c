@@ -41,12 +41,12 @@ static struct astarnode *node_delete_min();
 int node_insert(struct apply_med_handle *medh, int wordpos, int fsmstate, int g, int h, int in, int out, int parent);
 
 char *print_sym(int sym, struct sigma *sigma) {
-    while (sigma != NULL) {
-        if (sigma->number == sym) {
-	    return(sigma->symbol);
-        }
-        sigma = sigma->next;
+    struct symbol *syms = sigma->symbols;
+    for (unsigned int i = 0; i < sigma->size; ++i) {
+        if (syms[i].number == sym)
+            return syms[i].symbol;
     }
+
     return NULL;
 }
 
@@ -148,7 +148,8 @@ void apply_med_clear(struct apply_med_handle *medh) {
 struct apply_med_handle *apply_med_init(struct build_handle *b_handle, struct fsm *net) {
 
     struct apply_med_handle *medh;
-    struct sigma *sigma;
+    struct symbol *syms = net->sigma.symbols;
+
     medh = xxcalloc(1,sizeof(struct apply_med_handle));    
     medh->net = net;
     medh->agenda = xxmalloc(sizeof(struct astarnode)*INITIAL_AGENDA_SIZE);
@@ -165,14 +166,14 @@ struct apply_med_handle *apply_med_init(struct build_handle *b_handle, struct fs
 	medh->hascm = 1;
 	medh->cm = net->medlookup->confusion_matrix;
     }
-    medh->maxsigma = sigma_max(net->sigma)+1;
+    medh->maxsigma = sigma_max(&net->sigma)+1;
     medh->sigmahash = sh_init();
-    for (sigma = net->sigma; sigma != NULL && sigma->number != -1 ; sigma=sigma->next ) {
-	if (sigma->number > IDENTITY) {
-	    sh_add_string(medh->sigmahash, sigma->symbol, sigma->number);
-	}
-    }
 
+    for (unsigned int i = 0; i < net->sigma.size; ++i) {
+        if (syms[i].number > IDENTITY) {
+            sh_add_string(medh->sigmahash, syms[i].symbol, syms[i].number);
+        }
+    }
 
     fsm_create_letter_lookup(b_handle, medh, net);
 
@@ -318,7 +319,7 @@ char *apply_med(struct build_handle *b_handle, struct apply_med_handle *medh, ch
                 if (medh->curr_node_has_match == 0) {
                     /* Found a match */
                     medh->curr_node_has_match = 1;
-                    print_match(b_handle, medh, medh->agenda+medh->curr_agenda_offset, medh->net->sigma, medh->word);
+                    print_match(b_handle, medh, medh->agenda+medh->curr_agenda_offset, &medh->net->sigma, medh->word);
                     medh->nummatches++;
 		    return(medh->outstring);
                 }
@@ -590,7 +591,7 @@ void fsm_create_letter_lookup(struct build_handle *b_handle, struct apply_med_ha
     medh->maxdepth = 2;
 
     num_states = net->statecount;
-    num_symbols = sigma_max(net->sigma);
+    num_symbols = sigma_max(&net->sigma);
     
     medh->bytes_per_letter_array = BITNSLOTS(num_symbols+1);
     medh->letterbits = xxcalloc(medh->bytes_per_letter_array*num_states,sizeof(uint8_t));
@@ -731,7 +732,7 @@ void fsm_create_letter_lookup(struct build_handle *b_handle, struct apply_med_ha
 
 void cmatrix_print_att(struct fsm *net, FILE *outfile) {
     int i, j, *cm, maxsigma;
-    maxsigma = sigma_max(net->sigma) + 1;
+    maxsigma = sigma_max(&net->sigma) + 1;
     cm = net->medlookup->confusion_matrix;
 
 
@@ -739,11 +740,11 @@ void cmatrix_print_att(struct fsm *net, FILE *outfile) {
         for (j = 0; j < maxsigma ; j++) {
             if ((i != 0 && i < 3) || (j != 0 && j < 3)) { continue; }
             if (i == 0 && j != 0) {
-                fprintf(outfile,"0\t0\t%s\t%s\t%i\n", "@0@", sigma_string(j, net->sigma), *(cm+i*maxsigma+j));
+                fprintf(outfile,"0\t0\t%s\t%s\t%i\n", "@0@", sigma_string(j, &net->sigma), *(cm+i*maxsigma+j));
             } else if (j == 0 && i != 0) {
-                fprintf(outfile,"0\t0\t%s\t%s\t%i\n", sigma_string(i,net->sigma), "@0@", *(cm+i*maxsigma+j));
+                fprintf(outfile,"0\t0\t%s\t%s\t%i\n", sigma_string(i, &net->sigma), "@0@", *(cm+i*maxsigma+j));
             } else if (j != 0 && i != 0) {
-                fprintf(outfile,"0\t0\t%s\t%s\t%i\n", sigma_string(i,net->sigma),sigma_string(j, net->sigma), *(cm+i*maxsigma+j));
+                fprintf(outfile,"0\t0\t%s\t%s\t%i\n", sigma_string(i, &net->sigma),sigma_string(j, &net->sigma), *(cm+i*maxsigma+j));
             }
         }
     }
@@ -753,21 +754,22 @@ void cmatrix_print_att(struct fsm *net, FILE *outfile) {
 void cmatrix_print(struct fsm *net) {
     int lsymbol, i, j, *cm, maxsigma;
     char *thisstring;
-    struct sigma *sigma;
-    maxsigma = sigma_max(net->sigma) + 1;
+    struct symbol *syms = net->sigma.symbols;
+
+    maxsigma = sigma_max(&net->sigma) + 1;
     cm = net->medlookup->confusion_matrix;
 
     lsymbol = 0 ;
-    for (sigma = net->sigma; sigma != NULL; sigma = sigma->next) {
-        if (sigma->number < 3)
+    for (unsigned int i = 0; i < net->sigma.size; ++i) {
+        if (syms[i].number < 3)
             continue;
-        lsymbol = strlen(sigma->symbol) > lsymbol ? strlen(sigma->symbol) : lsymbol;
+        lsymbol = strlen(syms[i].symbol) > lsymbol ? strlen(syms[i].symbol) : lsymbol;
     }
     printf("%*s",lsymbol+2,"");
     printf("%s","0 ");
 
     for (i = 3; ; i++) {
-        if ((thisstring = sigma_string(i, net->sigma)) != NULL) {
+        if ((thisstring = sigma_string(i, &net->sigma)) != NULL) {
             printf("%s ",thisstring);
         } else {
             break;
@@ -783,7 +785,7 @@ void cmatrix_print(struct fsm *net) {
                     printf("%*s",lsymbol+1,"0");
                     printf("%*s",2,"*");
                 } else {
-                    printf("%*s",lsymbol+1, sigma_string(i, net->sigma));
+                    printf("%*s",lsymbol+1, sigma_string(i, &net->sigma));
                     printf("%*d",2,*(cm+i*maxsigma+j));
                 }
                 j++;
@@ -791,9 +793,9 @@ void cmatrix_print(struct fsm *net) {
                 continue;
             }
             if (i == j) {
-                printf("%.*s",(int)strlen(sigma_string(j, net->sigma))+1,"*");
+                printf("%.*s",(int)strlen(sigma_string(j, &net->sigma))+1,"*");
             } else {
-                printf("%.*d",(int)strlen(sigma_string(j, net->sigma))+1,*(cm+i*maxsigma+j));
+                printf("%.*d",(int)strlen(sigma_string(j, &net->sigma))+1,*(cm+i*maxsigma+j));
             }
         }
         printf("\n");
@@ -808,7 +810,7 @@ void cmatrix_init(struct fsm *net) {
     if (net->medlookup == NULL) {
         net->medlookup = xxcalloc(1,sizeof(struct medlookup));
     }
-    maxsigma = sigma_max(net->sigma)+1;
+    maxsigma = sigma_max(&net->sigma)+1;
     cm = xxcalloc(maxsigma*maxsigma, sizeof(int));
     net->medlookup->confusion_matrix = cm;
     for (i = 0; i < maxsigma; i++) {
@@ -824,7 +826,7 @@ void cmatrix_init(struct fsm *net) {
 void cmatrix_default_substitute(struct fsm *net, int cost) {
     int i, j, maxsigma, *cm;
     cm = net->medlookup->confusion_matrix;
-    maxsigma = sigma_max(net->sigma)+1;
+    maxsigma = sigma_max(&net->sigma)+1;
     for (i = 1; i < maxsigma; i++) {
         for (j = 1; j < maxsigma; j++) {
             if (i == j) {
@@ -839,7 +841,7 @@ void cmatrix_default_substitute(struct fsm *net, int cost) {
 void cmatrix_default_insert(struct fsm *net, int cost) {
     int i, maxsigma, *cm;
     cm = net->medlookup->confusion_matrix;
-    maxsigma = sigma_max(net->sigma)+1;
+    maxsigma = sigma_max(&net->sigma)+1;
     for (i = 0; i < maxsigma; i++) {
         *(cm+i) = cost;
     }
@@ -848,7 +850,7 @@ void cmatrix_default_insert(struct fsm *net, int cost) {
 void cmatrix_default_delete(struct fsm *net, int cost) {
     int i, maxsigma, *cm;
     cm = net->medlookup->confusion_matrix;
-    maxsigma = sigma_max(net->sigma)+1;
+    maxsigma = sigma_max(&net->sigma)+1;
     for (i = 0; i < maxsigma; i++) {
         *(cm+i*maxsigma) = cost;
     }
@@ -857,16 +859,16 @@ void cmatrix_default_delete(struct fsm *net, int cost) {
 void cmatrix_set_cost(struct fsm *net, char *in, char *out, int cost) {
     int i, o, maxsigma, *cm;
     cm = net->medlookup->confusion_matrix;
-    maxsigma = sigma_max(net->sigma) + 1;
+    maxsigma = sigma_max(&net->sigma) + 1;
     if (in == NULL) {
         i = 0;
     } else {
-        i = sigma_find(in, net->sigma);
+        i = sigma_find(in, &net->sigma);
     }
     if (out == NULL) {
         o = 0;
     } else {
-        o = sigma_find(out, net->sigma);
+        o = sigma_find(out, &net->sigma);
     }
     if (i == -1) {
         printf("Warning, symbol '%s' not in alphabet\n",in);

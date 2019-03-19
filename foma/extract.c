@@ -22,7 +22,7 @@ struct fsm *fsm_lower(struct fsm *net) {
     struct fsm_state *fsm;
     int i, prevstate, out;
     fsm = net->states;
-    fsm_state_init(sigma_max(net->sigma));
+    fsm_state_init(sigma_max(&net->sigma));
     prevstate = -1;
     for (i = 0; (fsm+i)->state_no != - 1; prevstate = (fsm+i)->state_no, i++) {
         if (prevstate != -1 && prevstate != (fsm+i)->state_no) {
@@ -48,7 +48,7 @@ struct fsm *fsm_upper(struct fsm *net) {
     struct fsm_state *fsm;
     int i, prevstate, in;
     fsm = net->states;
-    fsm_state_init(sigma_max(net->sigma));
+    fsm_state_init(sigma_max(&net->sigma));
     prevstate = -1;
     for (i = 0; (fsm+i)->state_no != - 1; prevstate = (fsm+i)->state_no, i++) {
         if (prevstate != -1 && prevstate != (fsm+i)->state_no) {

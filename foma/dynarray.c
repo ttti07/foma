@@ -305,33 +305,33 @@ void fsm_construct_copy_sigma(struct fsm_construct_handle *handle, struct sigma 
     struct fsm_sigma_hash *fh, *newfh;
     char *symbol, *symdup;
 
-    for (; sigma != NULL && sigma->number != -1; sigma = sigma->next) {
-	symnum = sigma->number;
-	if (symnum > handle->maxsigma) {
-	    handle->maxsigma = symnum;
-	}
-	symbol = sigma->symbol;
-	if (symnum >= handle->fsm_sigma_list_size) {
-	    handle->fsm_sigma_list_size = next_power_of_two(handle->fsm_sigma_list_size);
-	    handle->fsm_sigma_list = xxrealloc(handle->fsm_sigma_list, (handle->fsm_sigma_list_size) * sizeof(struct fsm_sigma_list));
-	}
-	/* Insert into list */
-	symdup = xxstrdup(symbol);
-	((handle->fsm_sigma_list)+symnum)->symbol = symdup;
-	
-	/* Insert into hashtable */
-	hash = fsm_construct_hash_sym(symbol);
-	fh = (handle->fsm_sigma_hash)+hash;   
-	if (fh->symbol == NULL) {
-	    fh->symbol = symdup;
-	    fh->sym = symnum;        
-	} else {
-	    newfh = xxcalloc(1,sizeof(struct fsm_sigma_hash));
-	    newfh->next = fh->next;
-	    fh->next = newfh;
-	    newfh->symbol = symdup;
-	    newfh->sym = symnum;
-	}
+    for (unsigned int i = 0; i < sigma->size; ++i) {
+        symnum = sigma->symbols[i].number;
+        if (symnum > handle->maxsigma) {
+            handle->maxsigma = symnum;
+        }
+        symbol = sigma->symbols[i].symbol;
+        if (symnum >= handle->fsm_sigma_list_size) {
+            handle->fsm_sigma_list_size = next_power_of_two(handle->fsm_sigma_list_size);
+            handle->fsm_sigma_list = xxrealloc(handle->fsm_sigma_list, (handle->fsm_sigma_list_size) * sizeof(struct fsm_sigma_list));
+        }
+        /* Insert into list */
+        symdup = xxstrdup(symbol);
+        ((handle->fsm_sigma_list)+symnum)->symbol = symdup;
+
+        /* Insert into hashtable */
+        hash = fsm_construct_hash_sym(symbol);
+        fh = (handle->fsm_sigma_hash)+hash;   
+        if (fh->symbol == NULL) {
+            fh->symbol = symdup;
+            fh->sym = symnum;        
+        } else {
+            newfh = xxcalloc(1,sizeof(struct fsm_sigma_hash));
+            newfh->next = fh->next;
+            fh->next = newfh;
+            newfh->symbol = symdup;
+            newfh->sym = symnum;
+        }
     }
 }
 
@@ -399,27 +399,16 @@ int fsm_construct_check_symbol(struct fsm_construct_handle *handle, char *symbol
     return -1;
 }
 
-struct sigma *fsm_construct_convert_sigma(struct fsm_construct_handle *handle) {
-    struct fsm_sigma_list *sl;
-    struct sigma *sigma, *oldsigma, *newsigma;
-    int i;
-    oldsigma = sigma = NULL;
-    sl = handle->fsm_sigma_list;
-    for (i=0; i <= handle->maxsigma; i++) {
-        if ((sl+i)->symbol != NULL) {
-            newsigma = xxmalloc(sizeof(struct sigma));
-            newsigma->number = i;
-            newsigma->symbol = (sl+i)->symbol;
-            newsigma->next = NULL;
-            if (oldsigma != NULL) {
-                oldsigma->next = newsigma;
-            } else {
-                sigma = newsigma;
-            }
-            oldsigma = newsigma;
-        }
+static struct sigma fsm_construct_convert_sigma(struct fsm_construct_handle *handle) {
+    struct fsm_sigma_list *sl = handle->fsm_sigma_list;
+    struct sigma sigma = sigma_create();
+
+    for (unsigned int i = 0; i <= handle->maxsigma; i++) {
+        if (sl[i].symbol != NULL)
+            sigma_add_number(&sigma, sl[i].symbol, i);
     }
-    return(sigma);
+
+    return sigma;
 }
 
 struct fsm *fsm_construct_done(struct fsm_construct_handle *handle) {
@@ -448,7 +437,7 @@ struct fsm *fsm_construct_done(struct fsm_construct_handle *handle) {
     }
     net = fsm_create("");
     sprintf(net->name, "%X",rand());
-    xxfree(net->sigma);
+    fsm_sigma_destroy(&net->sigma);
     fsm_state_close(net);
     
     net->sigma = fsm_construct_convert_sigma(handle);
@@ -561,8 +550,8 @@ struct fsm_read_handle *fsm_read_init(struct fsm *net) {
     handle->initials_head = initials_head;
     handle->states_head = states_head;
     
-    handle->fsm_sigma_list = sigma_to_list(net->sigma);
-    handle->sigma_list_size = sigma_max(net->sigma)+1;
+    handle->fsm_sigma_list = sigma_to_list(&net->sigma);
+    handle->sigma_list_size = sigma_max(&net->sigma)+1;
     handle->arcs_head = fsm;
     handle->lookuptable = lookuptable;
     handle->net = net;

@@ -75,7 +75,7 @@ void fsm_sort_arcs(struct fsm *net, int direction) {
     if (direction == 2) {
 	net->arcs_sorted_out = 1;
 	net->arcs_sorted_in = 0;
-    }    
+    }
 }
 
 struct state_array *map_firstlines(struct fsm *net) {
@@ -104,21 +104,21 @@ struct fsm *fsm_boolean(int value) {
 struct fsm *fsm_sigma_net(struct fsm *net) {
     /* Extract sigma and create net with one arc            */
     /* from state 0 to state 1 with each (state 1 is final) */
-    struct sigma *sig;
+    struct symbol *syms = net->sigma.symbols;
     int pathcount;
 
-    if (sigma_size(net->sigma) == 0) {
+    if (net->sigma.size == 0) {
 	fsm_destroy(net);
         return(fsm_empty_set());
     }
-    
-    fsm_state_init(sigma_max(net->sigma));
+
+    fsm_state_init(sigma_max(&net->sigma));
     fsm_state_set_current_state(0, 0, 1);
     pathcount = 0;
-    for (sig = net->sigma; sig != NULL; sig = sig->next) {
-        if (sig->number >=3 || sig->number == IDENTITY) {
+    for (unsigned int i = 0; i < net->sigma.size; ++i) {
+        if (syms[i].number >= 3 || syms[i].number == IDENTITY) {
             pathcount++;
-            fsm_state_add_arc(0,sig->number, sig->number, 1, 0, 1);
+            fsm_state_add_arc(0, syms[i].number, syms[i].number, 1, 0, 1);
         }
     }
     fsm_state_end_state();
@@ -139,11 +139,11 @@ struct fsm *fsm_sigma_pairs_net(struct fsm *net) {
     char *pairs;
     short int in, out;
     int i, pathcount, smax;
-    
-    smax = sigma_max(net->sigma)+1;
+
+    smax = sigma_max(&net->sigma)+1;
     pairs = xxcalloc(smax*smax, sizeof(char));
 
-    fsm_state_init(sigma_max(net->sigma));
+    fsm_state_init(sigma_max(&net->sigma));
     fsm_state_set_current_state(0, 0, 1);
     pathcount = 0;
     for (fsm = net->states, i=0; (fsm+i)->state_no != -1; i++) {
@@ -177,15 +177,20 @@ struct fsm *fsm_sigma_pairs_net(struct fsm *net) {
 }
 
 int fsm_sigma_destroy(struct sigma *sigma) {
-    struct sigma *sig, *sigp;
-    for (sig = sigma, sigp = NULL; sig != NULL; sig = sigp) {
-	sigp = sig->next;
-	if (sig->symbol != NULL) {
-	    xxfree(sig->symbol);
-	    sig->symbol = NULL;
-	}
-	xxfree(sig);
+    struct symbol *syms = sigma->symbols;
+    if (!syms)
+        return 0;
+
+    for (unsigned int i = 0; i < sigma->size; ++i) {
+        if (syms[i].symbol)
+            xxfree(syms[i].symbol);
     }
+
+    xxfree(syms);
+    sigma->symbols = NULL;
+    sigma->size = 0;
+    sigma->memsize = 0;
+
     return 1;
 }
 
@@ -201,8 +206,7 @@ int fsm_destroy(struct fsm *net) {
         xxfree(net->medlookup);
 	net->medlookup = NULL;
     }
-    fsm_sigma_destroy(net->sigma);
-    net->sigma = NULL;
+    fsm_sigma_destroy(&net->sigma);
     if (net->states != NULL) {
         xxfree(net->states);
 	net->states = NULL;
@@ -246,19 +250,12 @@ struct fsm *fsm_empty_string() {
 }
 
 struct fsm *fsm_identity() {
-  struct fsm *net;
-  struct sigma *sigma;
-  net = fsm_create("");
-  xxfree(net->sigma);
+  struct fsm *net = fsm_create("");
   net->states = xxmalloc(sizeof(struct fsm_state)*3);
   add_fsm_arc(net->states, 0, 0, 2, 2, 1, 0, 1);
   add_fsm_arc(net->states, 1, 1, -1, -1, -1, 1, 0);
   add_fsm_arc(net->states, 2, -1, -1, -1, -1, -1, -1);
-  sigma = xxmalloc(sizeof(struct sigma));
-  sigma->number = IDENTITY;
-  sigma->symbol = xxstrdup("@_IDENTITY_SYMBOL_@");
-  sigma->next = NULL;
-  net->sigma = sigma;
+  sigma_add_special(IDENTITY, &net->sigma);
   fsm_update_flags(net,YES,YES,YES,YES,YES,NO);
   net->statecount = 2;
   net->finalcount = 1;
@@ -294,10 +291,10 @@ int fsm_isuniversal(struct fsm *net) {
     net = fsm_minimize(net);
     fsm_compact(net);
     fsm = net->states;
-    if ((fsm->target == 0 && fsm->final_state == 1 && (fsm+1)->state_no == 0) && 
+    if ((fsm->target == 0 && fsm->final_state == 1 && (fsm+1)->state_no == 0) &&
         (fsm->in == IDENTITY && fsm->out == IDENTITY) &&
         ((fsm+1)->state_no == -1) &&
-        (sigma_max(net->sigma)<3) ) {
+        (sigma_max(&net->sigma)<3) ) {
         return 1;
     } else {
         return 0;
@@ -310,15 +307,15 @@ int fsm_isempty(struct fsm *net) {
     fsm = net->states;
     if (fsm->target == -1 && fsm->final_state == 0 && (fsm+1)->state_no == -1)
         return 1;
-    else 
+    else
         return 0;
 }
 
 int fsm_issequential(struct fsm *net) {
     int i, *sigtable, sequential, seentrans, epstrans, laststate, insym;
     struct fsm_state *fsm;
-    sigtable = xxcalloc(sigma_max(net->sigma)+1,sizeof(int));
-    for (i = 0 ; i < sigma_max(net->sigma)+1; i++) {
+    sigtable = xxcalloc(sigma_max(&net->sigma)+1,sizeof(int));
+    for (i = 0 ; i < sigma_max(&net->sigma)+1; i++) {
 	sigtable[i] = -2;
     }
     fsm = net->states;
@@ -406,7 +403,7 @@ int fsm_isidentity(struct fsm *net) {
     /* c) we encounter a final state and have a non-null current discrepancy.   */
     /* d) we encounter @ with a non-null discrepancy anywhere.                  */
     /* e) we encounter ? anywhere.                                              */
-    
+
     struct discrepancy {
         short int *string;
         short int length;
@@ -421,7 +418,7 @@ int fsm_isidentity(struct fsm *net) {
 
     fsm_minimize(net);
     fsm_count(net);
-    
+
     num_states = net->statecount;
     discrepancy = xxcalloc(num_states,sizeof(struct discrepancy));
     state_array = map_firstlines(net);
@@ -470,7 +467,7 @@ int fsm_isidentity(struct fsm *net) {
                 factor = -1;
             else if (out == EPSILON)
                 factor = 1;
-            
+
             newlength = currd->length + factor;
             startfrom = (abs(newlength) <= abs(currd->length)) ? 1 : 0;
 
@@ -556,7 +553,7 @@ struct fsm *fsm_lowerdet(struct fsm *net) {
     newsym = 8723643;
     fsm = net->states;
     maxarc = 0;
-    maxsigma = sigma_max(net->sigma);
+    maxsigma = sigma_max(&net->sigma);
 
     for (i=0, j=0; (fsm+i)->state_no != -1; i++) {
         if ((fsm+i)->target != -1)
@@ -568,8 +565,8 @@ struct fsm *fsm_lowerdet(struct fsm *net) {
     }
     if (maxarc > (maxsigma-2)) {
         for (i=maxarc; i > (maxsigma-2); i--) {
-            sprintf(repstr,"%012X",newsym++);        
-            sigma_add(repstr, net->sigma);
+            sprintf(repstr,"%012X",newsym++);
+            sigma_add(repstr, &net->sigma);
         }
         sigma_sort(net);
     }
@@ -595,7 +592,7 @@ struct fsm *fsm_lowerdeteps(struct fsm *net) {
     newsym = 8723643;
     fsm = net->states;
     maxarc = 0;
-    maxsigma = sigma_max(net->sigma);
+    maxsigma = sigma_max(&net->sigma);
 
     for (i=0, j=0; (fsm+i)->state_no != -1; i++) {
         if ((fsm+i)->target != -1)
@@ -607,8 +604,8 @@ struct fsm *fsm_lowerdeteps(struct fsm *net) {
     }
     if (maxarc > (maxsigma-2)) {
         for (i=maxarc; i > (maxsigma-2); i--) {
-            sprintf(repstr,"%012X",newsym++);        
-            sigma_add(repstr, net->sigma);
+            sprintf(repstr,"%012X",newsym++);
+            sigma_add(repstr, &net->sigma);
         }
         sigma_sort(net);
     }
@@ -644,8 +641,8 @@ struct fsm *fsm_extract_nonidentity(struct fsm *net) {
 
     fsm_minimize(net);
     fsm_count(net);
-    killnum = sigma_add("@KILL@", net->sigma);
-    
+    killnum = sigma_add("@KILL@", &net->sigma);
+
     num_states = net->statecount;
     discrepancy = xxcalloc(num_states,sizeof(struct discrepancy));
     state_array = map_firstlines(net);
@@ -693,7 +690,7 @@ struct fsm *fsm_extract_nonidentity(struct fsm *net) {
                 factor = -1;
             else if (out == EPSILON)
                 factor = 1;
-            
+
             newlength = currd->length + factor;
             startfrom = (abs(newlength) <= abs(currd->length)) ? 1 : 0;
 
@@ -751,16 +748,16 @@ struct fsm *fsm_extract_nonidentity(struct fsm *net) {
             goto nopop;
         }
         continue;
-    fail:        
+    fail:
         curr_ptr->out = killnum;
         if (curr_ptr->state_no == (curr_ptr+1)->state_no) {
             ptr_stack_push(curr_ptr+1);
-        }        
+        }
     }
     ptr_stack_clear();
     sigma_sort(net);
     net2 = fsm_upper(fsm_compose(net,fsm_contains(fsm_symbol("@KILL@"))));
-    sigma_remove("@KILL@",net2->sigma);
+    sigma_remove("@KILL@", &net2->sigma);
     sigma_sort(net2);
     xxfree(state_array);
     xxfree(discrepancy);
@@ -776,14 +773,14 @@ struct fsm *fsm_copy (struct fsm *net) {
     memcpy(net_copy, net, sizeof(struct fsm));
 
     fsm_count(net);
-    net_copy->sigma = sigma_copy(net->sigma);
-    net_copy->states = fsm_state_copy(net->states, net->linecount);      
+    net_copy->sigma = sigma_copy(&net->sigma);
+    net_copy->states = fsm_state_copy(net->states, net->linecount);
     return(net_copy);
 }
 
 struct fsm_state *fsm_state_copy(struct fsm_state *fsm_state, int linecount) {
   struct fsm_state *new_fsm_state;
-  
+
   new_fsm_state = xxmalloc(sizeof(struct fsm_state)*(linecount));
   memcpy(new_fsm_state, fsm_state, linecount*sizeof(struct fsm_state));
   return(new_fsm_state);
@@ -815,9 +812,9 @@ void add_quantifier (char *string) {
     if (quantifiers == NULL) {
 	q = xxmalloc(sizeof(struct defined_quantifiers));
 	quantifiers = q;
-    } else { 
+    } else {
 	for (q = quantifiers; q->next != NULL; q = q->next) {
-	    
+	
 	}
 	q->next = xxmalloc(sizeof(struct defined_quantifiers));
 	q = q->next;
@@ -829,16 +826,16 @@ void add_quantifier (char *string) {
 struct fsm *union_quantifiers() {
 /*     We create a FSM that simply accepts the union of all */
 /*     quantifier symbols */
-    
+
     struct fsm *net;
     struct defined_quantifiers *q;
     int i, syms, s, symlo;
-    
+
     net = fsm_create("");
     fsm_update_flags(net, YES, YES, YES, YES, NO, NO);
-    
+
     for (syms = 0, symlo = 0, q = quantifiers; q != NULL; q = q->next) {
-      s = sigma_add(q->name, net->sigma);
+      s = sigma_add(q->name, &net->sigma);
       if (symlo == 0) {
 	symlo = s;
       }
@@ -865,7 +862,7 @@ char *find_quantifier (char *string) {
 }
 
 void purge_quantifier (char *string) {
-    struct defined_quantifiers *q, *q_prev;    
+    struct defined_quantifiers *q, *q_prev;
     for (q = quantifiers, q_prev = NULL; q != NULL; q_prev = q, q = q->next) {
 	if (strcmp(string, q->name) == 0) {
 	    if (q_prev != NULL) {
@@ -887,7 +884,7 @@ struct fsm *fsm_quantifier(char *string) {
 struct fsm *fsm_logical_precedence(char *string1, char *string2) {
     /* x < y = \y* x \y* [x | y Q* x] ?* */
     /*          1  2  3        4           5 */
-    
+
     return(fsm_concat(fsm_kleene_star(fsm_term_negation(fsm_symbol(string2))),fsm_concat(fsm_symbol(string1),fsm_concat(fsm_kleene_star(fsm_term_negation(fsm_symbol(string2))),fsm_concat(fsm_union(fsm_symbol(string1),fsm_concat(fsm_symbol(string2),fsm_concat(union_quantifiers(),fsm_symbol(string1)))),fsm_universal())))));
 
 /*    1,3   fsm_kleene_star(fsm_term_negation(fsm_symbol(string2))) */

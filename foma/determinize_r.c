@@ -217,10 +217,10 @@ static struct fsm *fsm_subset(struct determinize_handle *det_handle, struct fsm 
     }
 
     if (operation == SUBSET_TEST_STAR_FREE) {
-        fsm_state_init(det_handle->b_handle->da_handle, sigma_max(net->sigma)+1);
+        fsm_state_init(det_handle->b_handle->da_handle, sigma_max(&net->sigma)+1);
         det_handle->star_free_mark = 0;
     } else {
-        fsm_state_init(det_handle->b_handle->da_handle, sigma_max(net->sigma));
+        fsm_state_init(det_handle->b_handle->da_handle, sigma_max(&net->sigma));
         xxfree(net->states);
     }
 
@@ -649,7 +649,7 @@ static void sigma_to_pairs(struct determinize_handle *det_handle, struct fsm *ne
   fsm = net->states;
 
   det_handle->epsilon_symbol = -1; 
-  det_handle->maxsigma = sigma_max(net->sigma);
+  det_handle->maxsigma = sigma_max(&net->sigma);
   det_handle->maxsigma++;
 
   det_handle->single_sigma_array = xxmalloc(2 * det_handle->maxsigma * det_handle->maxsigma * sizeof(int));

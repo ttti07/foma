@@ -8,8 +8,6 @@ set(foma_VERSION_PATCH 18)
 find_package(FLEX)
 find_package(BISON)
 
-set(CMAKE_C_STANDARD 99)
-
 # bison and flex
 bison_target(REGEX "${CMAKE_CURRENT_SOURCE_DIR}/foma/regex.y" "${CMAKE_CURRENT_BINARY_DIR}/regex.c"
 	DEFINES_FILE "${CMAKE_CURRENT_BINARY_DIR}/regex.h")
@@ -34,6 +32,7 @@ add_library(COMMON_OBJ OBJECT
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/stringhash.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/trie.c")
 target_compile_options(COMMON_OBJ PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC)
+target_compile_features(COMMON_OBJ PRIVATE c_std_11)
 target_include_directories(COMMON_OBJ PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
 
 add_library(foma_static STATIC
@@ -58,6 +57,7 @@ add_library(foma_static STATIC
 	${FLEX_LEXC_OUTPUTS}
 	${FLEX_CMATRIX_OUTPUTS})
 target_compile_options(foma_static PRIVATE -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC)
+target_compile_features(foma_static PRIVATE c_std_11)
 target_include_directories(foma_static
 	PUBLIC $<INSTALL_INTERFACE:include>
        	PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
@@ -86,14 +86,17 @@ add_executable(foma
 	${FLEX_INTERFACE_OUTPUTS})
 target_include_directories(foma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/foma)
 target_compile_options(foma PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden)
+target_compile_features(foma PRIVATE c_std_11)
 target_link_libraries(foma PUBLIC foma_static -lreadline -lz -ltermcap) 
 
 add_executable(flookup "${CMAKE_CURRENT_SOURCE_DIR}/foma/flookup.c")
 target_compile_options(flookup PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden)
+target_compile_features(flookup PRIVATE c_std_11)
 target_link_libraries(flookup PUBLIC foma_static -lreadline -lz -ltermcap)
 
 add_executable(cgflookup "${CMAKE_CURRENT_SOURCE_DIR}/foma/cgflookup.c")
 target_compile_options(cgflookup PUBLIC -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden)
+target_compile_features(cgflookup PRIVATE c_std_11)
 target_link_libraries(cgflookup PUBLIC foma_static -lreadline -lz -ltermcap)
 
 # thread-safe foma
@@ -113,6 +116,7 @@ add_library(foma_r_static STATIC
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/spelling_r.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/foma/dynarray_r.c")
 target_compile_options(foma_r_static PRIVATE -O3 -Wall -D_GNU_SOURCE -fvisibility=hidden -fPIC -DTHREAD_SAFE_FOMA)
+target_compile_features(foma_r_static PRIVATE c_std_11)
 target_include_directories(foma_r_static
 	PUBLIC $<INSTALL_INTERFACE:include>
 	PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -124,6 +128,7 @@ set_target_properties(foma_r_static PROPERTIES
 	PUBLIC_HEADER "${HEADERS}")
 
 add_library(foma_r_shared SHARED $<TARGET_OBJECTS:COMMON_OBJ>)
+target_compile_features(foma_r_shared PRIVATE c_std_11)
 target_include_directories(foma_r_shared INTERFACE $<INSTALL_INTERFACE:include>)
 target_link_libraries(foma_r_shared PRIVATE foma_r_static)
 set_target_properties(foma_r_shared PROPERTIES

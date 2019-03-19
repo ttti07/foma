@@ -104,6 +104,18 @@ struct defined_quantifiers {
 
 /* Automaton structures */
 
+/** sigma: array of symbols */
+/** number < IDENTITY is reserved for special symbols */
+struct symbol {
+    int number;
+    char *symbol;
+};
+struct sigma {
+    struct symbol *symbols;
+    unsigned int size;
+    unsigned int memsize;
+};
+
 /** Main automaton structure */
 struct fsm {
   char name[40];
@@ -122,7 +134,7 @@ struct fsm {
   int arcs_sorted_in;
   int arcs_sorted_out;
   struct fsm_state *states;             /* pointer to first line */
-  struct sigma *sigma;
+  struct sigma sigma;
   struct medlookup *medlookup;
 };
 
@@ -165,14 +177,6 @@ struct rewrite_set {
     struct fsmcontexts *rewrite_contexts;
     struct rewrite_set *next;
     int rule_direction;    /* || \\ // \/ */
-};
-
-/** Linked list of sigma */
-/** number < IDENTITY is reserved for special symbols */
-struct sigma {
-    int number;
-    char *symbol;
-    struct sigma *next;
 };
 
 #include "foma/fomalibconf_r.h"
@@ -311,7 +315,7 @@ FEXPORT void fsm_merge_sigma(struct fsm *net1, struct fsm *net2);
 
 /* Copies an alphabet */
 
-FEXPORT struct sigma *sigma_copy(struct sigma *sigma);
+FEXPORT struct sigma sigma_copy(const struct sigma *sigma);
 
 /* Create empty FSM */
 FEXPORT struct fsm *fsm_create(char *name);

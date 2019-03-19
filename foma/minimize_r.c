@@ -613,7 +613,7 @@ static void sigma_to_pairs(struct minimize_handle *min_handle, struct fsm *net) 
   fsm = net->states;
   
   min_handle->epsilon_symbol = -1; 
-  min_handle->maxsigma = sigma_max(net->sigma);
+  min_handle->maxsigma = sigma_max(&net->sigma);
 
   min_handle->maxsigma++;
 

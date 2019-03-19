@@ -76,7 +76,7 @@ static unsigned int primes[26] = {61,127,251,509,1021,2039,4093,8191,16381,32749
 static struct statelist *statelist = NULL;
 static struct multichar_symbols *mc = NULL;
 static struct lexstates *lexstates = NULL;
-static struct sigma *lexsigma = NULL;
+static struct sigma lexsigma;
 static struct lexc_hashtable *hashtable;
 static struct fsm *current_regex_network;
 
@@ -225,11 +225,11 @@ void lexc_add_network() {
 
     struct fsm *net;
     struct fsm_state *fsm;
-    struct sigma *sigma;
     struct states **slist, *sourcestate, *deststate, *newstate;
     struct statelist *s;
     struct trans *newtrans;
     int i, j, *sigreplace, signumber, maxstate, *finals, unknown_symbols, first_new_sigma, *unk = NULL;
+    struct symbol *syms = net->sigma.symbols;
 
     unknown_symbols = 0;
     first_new_sigma = 0;
@@ -239,18 +239,18 @@ void lexc_add_network() {
     net = current_regex_network;
     fsm = net->states;
 
-    sigreplace = xxcalloc(sigma_max(net->sigma)+1,sizeof(int));
+    sigreplace = xxcalloc(sigma_max(&net->sigma)+1,sizeof(int));
 
-    for (sigma = net->sigma; sigma != NULL && sigma->number != -1; sigma = sigma->next) {
-        if ((signumber = lexc_find_sigma_hash(sigma->symbol)) == -1) {
+    for (unsigned int i = 0; i < net->sigma.size; ++i) {
+        if ((signumber = lexc_find_sigma_hash(syms[i].symbol)) == -1) {
             /* Add to existing lexc sigma */
-            signumber = sigma_add(sigma->symbol, lexsigma);
+            signumber = sigma_add(syms[i].symbol, &lexsigma);
             first_new_sigma = first_new_sigma > 0 ? first_new_sigma : signumber;
-            lexc_add_sigma_hash(sigma->symbol, signumber);
-            *(sigreplace+sigma->number) = signumber;
+            lexc_add_sigma_hash(syms[i].symbol, signumber);
+            *(sigreplace+syms[i].number) = signumber;
         } else {
             /* We already have it, add to conversion table */
-            *(sigreplace+sigma->number) = signumber;
+            *(sigreplace+syms[i].number) = signumber;
         }
     }
 
@@ -265,10 +265,10 @@ void lexc_add_network() {
             unknown_symbols = 1;
     }
     if (unknown_symbols == 1) {
-        unk = xxcalloc(sigma_max(lexsigma)+2,sizeof(int));
-        for (i=0, sigma = lexsigma; sigma != NULL && sigma->number != -1; sigma=sigma->next) {
-            if (sigma->number > 2 && sigma_find(sigma->symbol, net->sigma) == -1) {
-                *(unk+i) = sigma->number;
+        unk = xxcalloc(sigma_max(&lexsigma)+2,sizeof(int));
+        for (i = 0, j = 0; j < lexsigma.size; ++j) {
+            if (lexsigma.symbols[j].number > 2 && sigma_find(lexsigma.symbols[j].symbol, &net->sigma) == -1) {
+                *(unk+i) = lexsigma.symbols[j].number;
                 i++;
             }
         }
@@ -638,7 +638,7 @@ void lexc_string_to_tokens(char *string, int *intarr) {
                 pos++;
                 i = i + skip + 1;
             } else {
-                signumber = sigma_add(mystrncpy(tmpstring, string+i, skip+1), lexsigma);
+                signumber = sigma_add(mystrncpy(tmpstring, string+i, skip+1), &lexsigma);
                 lexc_add_sigma_hash(tmpstring, signumber);
                 *(intarr+pos) = signumber;
                 pos++;
@@ -682,7 +682,7 @@ void lexc_add_mc(char *symbol) {
         if (mcprev != NULL)
             mcprev->next = mcnew;
         
-        s = sigma_add(symbol, lexsigma);
+        s = sigma_add(symbol, &lexsigma);
         mchashval = (unsigned int) ((unsigned char) *(symbol)) * 256 + (unsigned int) ((unsigned char) *(symbol+1));    
         lexc_add_sigma_hash(symbol, s);
         *(mchash+mchashval) = 1;
@@ -992,7 +992,6 @@ struct fsm *lexc_to_fsm() {
     fflush(stdout);
     lexc_merge_states();
     net = fsm_create("");
-    xxfree(net->sigma);
     net->sigma = lexsigma;
     lexc_number_states();
     if (hasfinal == 0) {
@@ -1027,8 +1026,8 @@ struct fsm *lexc_to_fsm() {
     net->states = fsm;
     net->statecount = lexc_statecount;
     fsm_update_flags(net, UNK, UNK, UNK, UNK, UNK, UNK);
-    if (sigma_find_number(EPSILON, lexsigma) == -1)
-        sigma_add_special(EPSILON, lexsigma);
+    if (sigma_find_number(EPSILON, &lexsigma) == -1)
+        sigma_add_special(EPSILON, &lexsigma);
     xxfree(s);
     lexc_cleanup();
     sigma_cleanup(net,0);

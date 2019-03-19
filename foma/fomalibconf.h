@@ -253,20 +253,20 @@ int ptr_stack_isfull();
 void ptr_stack_push(void *ptr);
 
 /* Sigma functions */
-FEXPORT int sigma_add (char *symbol, struct sigma *sigma);
-FEXPORT int sigma_add_number(struct sigma *sigma, char *symbol, int number);
+FEXPORT int sigma_add (const char *symbol, struct sigma *sigma);
+FEXPORT int sigma_add_number(struct sigma *sigma, const char *symbol, int number);
 FEXPORT int sigma_add_special (int symbol, struct sigma *sigma);
-FEXPORT struct sigma *sigma_remove(char *symbol, struct sigma *sigma);
-FEXPORT struct sigma *sigma_remove_num(int num, struct sigma *sigma);
+FEXPORT void remove_symbol_from(struct sigma *sigma, unsigned int i);
+FEXPORT int sigma_remove(const char *symbol, struct sigma *sigma);
+FEXPORT int sigma_remove_num(int num, struct sigma *sigma);
 
-int sigma_find (char *symbol, struct sigma *sigma);
-int sigma_find_number (int number, struct sigma *sigma);
-int sigma_substitute(char *orig, char *sub, struct sigma *sigma);
+int sigma_find (const char *symbol, const struct sigma *sigma);
+int sigma_find_number (int number, const struct sigma *sigma);
+int sigma_substitute(const char *orig, const char *sub, struct sigma *sigma);
 FEXPORT char *sigma_string(int number, struct sigma *sigma);
 int sigma_sort (struct fsm *net);
 void sigma_cleanup (struct fsm *net, int force);
-FEXPORT struct sigma *sigma_create ();
-int sigma_size(struct sigma *sigma);
+FEXPORT struct sigma sigma_create ();
 FEXPORT int sigma_max(struct sigma *sigma);
 struct fsm_sigma_list *sigma_to_list(struct sigma *sigma);
 
