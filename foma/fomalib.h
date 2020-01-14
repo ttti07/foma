@@ -319,6 +319,13 @@ FEXPORT int fsm_sigma_destroy(struct sigma *sigma);
 FEXPORT int fsm_destroy(struct fsm *net);
 
 /* IO functions */
+struct io_buf_handle {
+    char *io_buf;
+    char *io_buf_ptr;
+};
+
+struct fsm *io_net_read(struct io_buf_handle *iobh, char **net_name);
+
 FEXPORT struct fsm *read_att(char *filename);
 FEXPORT int net_print_att(struct fsm *net, FILE *outfile);
 FEXPORT struct fsm *fsm_read_prolog(char *filename);
