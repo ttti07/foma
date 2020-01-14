@@ -44,10 +44,8 @@ struct binaryline {
 
 extern char *g_att_epsilon;
 
-struct io_buf_handle {
-    char *io_buf;
-    char *io_buf_ptr;
-};
+extern struct defined_networks   *g_defines;
+extern struct defined_functions  *g_defines_f;
 
 struct io_buf_handle *io_init();
 void io_free(struct io_buf_handle *iobh);
@@ -57,7 +55,6 @@ static size_t io_get_file_size(char *filename);
 static size_t io_get_regular_file_size(char *filename);
 size_t io_gz_file_to_mem (struct io_buf_handle *iobh, char *filename);
 int foma_net_print(struct fsm *net, gzFile outfile);
-struct fsm *io_net_read(struct io_buf_handle *iobh, char **net_name);
 static INLINE int explode_line (char *buf, int *values);
 
 
