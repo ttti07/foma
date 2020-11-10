@@ -520,6 +520,75 @@ void rewrite_add_special_syms(struct rewrite_batch *rb, struct fsm *net) {
 }
 
 
+struct fsm *fsm_context_restrict(struct fsm *X, struct fsmcontexts *LR) {
+
+    struct fsm *Var, *Notvar, *UnionL, *UnionP, *Result, *Word;
+    struct fsmcontexts *pairs;
+
+    /* [.#. \.#.* .#.]-`[[ [\X* X C X \X*]&~[\X* [L1 X \X* X R1|...|Ln X \X* X Rn] \X*]],X,0] */
+    /* Where X = variable symbol */
+    /* The above only works if we do the subtraction iff the right hand side contains .#. in */
+    /* its alphabet */
+    /* A more generic formula is the following: */
+
+    /* `[[[(?) \.#.* (?)] - `[[[\X* X C X \X*] - [\X* [L1 X \X* X R1|...|Ln X \X* X Rn] \X*] ],X,0],.#.,0]; */
+    /* Here, the LHS is another way of saying ~[?+ .#. ?+] */
+
+    Var = fsm_symbol("@VARX@");
+    Notvar = fsm_minimize(fsm_kleene_star(fsm_term_negation(fsm_symbol("@VARX@"))));
+
+    /* We add the variable symbol to all alphabets to avoid ? mathing it */
+    /* which would cause extra nondeterminism */
+    sigma_add("@VARX@", X->sigma);
+    sigma_sort(X);
+
+    /* Also, if any L or R is undeclared we add 0 */
+    for (pairs = LR; pairs != NULL; pairs = pairs->next) {
+        if (pairs->left == NULL) {
+            pairs->left = fsm_empty_string();
+        } else {
+            sigma_add("@VARX@",pairs->left->sigma);
+	    sigma_substitute(".#.", "@#@", pairs->left->sigma);
+            sigma_sort(pairs->left);
+        }
+        if (pairs->right == NULL) {
+            pairs->right = fsm_empty_string();
+        } else {
+            sigma_add("@VARX@",pairs->right->sigma);
+	    sigma_substitute(".#.", "@#@", pairs->right->sigma);
+            sigma_sort(pairs->right);
+        }
+    }
+
+    UnionP = fsm_empty_set();
+
+    for (pairs = LR; pairs != NULL ; pairs = pairs->next) {
+        UnionP = fsm_minimize(fsm_union(fsm_minimize(fsm_concat(fsm_copy(pairs->left),fsm_concat(fsm_copy(Var),fsm_concat(fsm_copy(Notvar),fsm_concat(fsm_copy(Var),fsm_copy(pairs->right)))))), UnionP));
+    }
+
+    UnionL = fsm_minimize(fsm_concat(fsm_copy(Notvar),fsm_concat(fsm_copy(Var), fsm_concat(fsm_copy(X), fsm_concat(fsm_copy(Var),fsm_copy(Notvar))))));
+
+    Result = fsm_intersect(UnionL, fsm_complement(fsm_concat(fsm_copy(Notvar),fsm_minimize(fsm_concat(fsm_copy(UnionP),fsm_copy(Notvar))))));
+    if (sigma_find("@VARX@", Result->sigma) != -1) {
+        Result = fsm_complement(fsm_substitute_symbol(Result, "@VARX@","@_EPSILON_SYMBOL_@"));
+    } else {
+	Result = fsm_complement(Result);
+    }
+
+    if (sigma_find("@#@", Result->sigma) != -1) {
+	Word = fsm_minimize(fsm_concat(fsm_symbol("@#@"),fsm_concat(fsm_kleene_star(fsm_term_negation(fsm_symbol("@#@"))),fsm_symbol("@#@"))));
+        Result = fsm_intersect(Word, Result);
+        Result = fsm_substitute_symbol(Result, "@#@", "@_EPSILON_SYMBOL_@");
+    }
+    fsm_destroy(UnionP);
+    fsm_destroy(Var);
+    fsm_destroy(Notvar);
+    fsm_destroy(X);
+    fsm_clear_contexts(pairs);
+    return(Result);
+}
+
+
 void fsm_clear_contexts(struct fsmcontexts *contexts) {
     struct fsmcontexts *c, *cp;
     for (c = contexts; c != NULL; c = cp) {
